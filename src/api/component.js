@@ -6,16 +6,77 @@ import {
   rendererDebounced as $rendererDebounced,
 } from '../util/symbols';
 import { customElementsV0 } from '../util/support';
+import assign from '../util/assign';
 import data from '../util/data';
 import debounce from '../util/debounce';
 import getOwnPropertyDescriptors from '../util/get-own-property-descriptors';
 
-export default class Component extends HTMLElement {
-  constructor() {
-    super();
-    this.createdCallback();
+function Component () {
+  const elem = HTMLElement.call(this);
+  if (!Object.setPrototypeOf) {
+    const ctor = this.constructor;
+    Object.defineProperty(elem, 'constructor', { configurable: true, value: ctor, writable: false });
+    Object.defineProperties(elem, getOwnPropertyDescriptors(this.constructor.prototype));
   }
+  elem.createdCallback();
+  return elem;
+}
 
+Component.prototype = Object.create(HTMLElement.prototype);
+
+assign(Component, {
+  observedAttributes: [],
+  props: {},
+
+  extend(definition = {}, Base = this) {
+    // let Ctor;
+
+    // if (Object.setPrototypeOf) {
+    //   Ctor = class extends Base {};
+    // } else {
+    //   Ctor = function() {
+    //     const elem = HTMLElement.call(this);
+    //     Object.defineProperty(elem, 'constructor', { configurable: true, value: Ctor, writable: false });
+    //     Object.defineProperties(elem, getOwnPropertyDescriptors(Ctor.prototype));
+    //     elem.createdCallback();
+    //     return elem;
+    //   };
+    //   Ctor.prototype = Object.create(Base.prototype);
+    //   Object.defineProperty(Ctor.prototype, 'constructor', { configurable: true, value: Ctor, writable: false });
+    //   Object.defineProperties(Ctor, getOwnPropertyDescriptors(Base));
+    //   Object.defineProperties(Ctor.prototype, getOwnPropertyDescriptors(Base.prototype));
+    // }
+
+    const Ctor = function () {
+      return Base.call(this);
+    };
+    Ctor.prototype = Object.create(Base.prototype);
+    Object.defineProperty(Ctor.prototype, 'constructor', { configurable: true, value: Ctor, writable: false });
+    Object.defineProperties(Ctor, getOwnPropertyDescriptors(Base));
+    Object.defineProperties(Ctor, getOwnPropertyDescriptors(definition));
+    Object.defineProperties(Ctor.prototype, getOwnPropertyDescriptors(Base.prototype));
+    Object.defineProperties(Ctor.prototype, getOwnPropertyDescriptors(definition.prototype));
+
+    return Ctor;
+  },
+
+  // This is a default implementation that does strict equality copmarison on
+  // previous props and next props. It synchronously renders on the first prop
+  // that is different and returns immediately.
+  updated(elem, prev) {
+    if (!prev) {
+      return true;
+    }
+
+    for (const name in prev) { // eslint-disable-line no-restricted-syntax
+      if (prev[name] !== elem[name]) {
+        return true;
+      }
+    }
+  },
+});
+
+assign(Component.prototype, {
   connectedCallback() {
     const ctor = this.constructor;
     const { attached } = ctor;
@@ -27,7 +88,7 @@ export default class Component extends HTMLElement {
     if (typeof attached === 'function') {
       attached(this);
     }
-  }
+  },
 
   disconnectedCallback() {
     const { detached } = this.constructor;
@@ -35,7 +96,7 @@ export default class Component extends HTMLElement {
     if (typeof detached === 'function') {
       detached(this);
     }
-  }
+  },
 
   attributeChangedCallback(name, oldValue, newValue) {
     const { attributeChanged, observedAttributes } = this.constructor;
@@ -66,7 +127,7 @@ export default class Component extends HTMLElement {
     if (attributeChanged) {
       attributeChanged(this, { name, newValue, oldValue });
     }
-  }
+  },
 
   createdCallback() {
     const elemData = data(this);
@@ -107,54 +168,15 @@ export default class Component extends HTMLElement {
         }
       });
     }
-  }
+  },
 
   attachedCallback() {
     this.connectedCallback();
-  }
+  },
 
   detachedCallback() {
     this.disconnectedCallback();
-  }
+  },
+});
 
-  static get observedAttributes() {
-    return [];
-  }
-
-  static get props() {
-    return {};
-  }
-
-  static extend(definition = {}, Base = this) {
-    // Create class for the user.
-    class Ctor extends Base {}
-
-    // For inheriting from the object literal.
-    const opts = getOwnPropertyDescriptors(definition);
-    const prot = getOwnPropertyDescriptors(definition.prototype);
-
-    // Prototype is non configurable (but is writable) s
-    delete opts.prototype;
-
-    // Pass on static and instance members from the definition.
-    Object.defineProperties(Ctor, opts);
-    Object.defineProperties(Ctor.prototype, prot);
-
-    return Ctor;
-  }
-
-  // This is a default implementation that does strict equality copmarison on
-  // prevoius props and next props. It synchronously renders on the first prop
-  // that is different and returns immediately.
-  static updated(elem, prev) {
-    if (!prev) {
-      return true;
-    }
-
-    for (const name in prev) { // eslint-disable-line no-restricted-syntax
-      if (prev[name] !== elem[name]) {
-        return true;
-      }
-    }
-  }
-}
+export default Component;

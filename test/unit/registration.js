@@ -49,8 +49,8 @@ describe('Returning a constructor', () => {
 
     const element = new Element();
 
-    expect(element.func1).to.be.a('function');
-    expect(element.func2).to.be.a('function');
+    expect(element.func1).to.be.a('function', 'func1');
+    expect(element.func2).to.be.a('function', 'func2');
   });
 
   it('should allow getters and setters on the prototype', () => {

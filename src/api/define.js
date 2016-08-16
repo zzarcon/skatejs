@@ -7,6 +7,7 @@ import { customElementsV0, customElementsV1 } from '../util/support';
 import Component from './component';
 import createRenderer from '../lifecycle/render';
 import dashCase from '../util/dash-case';
+import getOwnPropertyDescriptors from '../util/get-own-property-descriptors';
 import initProps from '../lifecycle/props-init';
 
 // Ensures that definitions passed as part of the constructor are functions
@@ -97,7 +98,6 @@ function generateUniqueName(name) {
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
-
   return `${name}-${rand}`;
 }
 
@@ -109,25 +109,32 @@ function prepareForRegistration(name, Ctor) {
 
 function registerV0Element(name, Ctor) {
   let res;
-  let uniqueName;
+  const ctorOpts = getOwnPropertyDescriptors(Ctor);
+
   try {
-    prepareForRegistration(name, Ctor);
     res = document.registerElement(name, Ctor);
   } catch (e) {
-    uniqueName = generateUniqueName(name);
-    prepareForRegistration(uniqueName, Ctor);
-    res = document.registerElement(uniqueName, Ctor);
+    res = document.registerElement(generateUniqueName(name), Ctor);
   }
+
+  // Copy over statics if we need to.
+  if (!res.observedAttributes) {
+    Object.defineProperties(res, ctorOpts);
+  }
+
+  prepareForRegistration(name, res);
+
   return res;
 }
 
 function registerV1Element(name, Ctor) {
-  let uniqueName = name;
   if (window.customElements.get(name)) {
-    uniqueName = generateUniqueName(name);
+    name = generateUniqueName(name);
   }
-  prepareForRegistration(uniqueName, Ctor);
-  window.customElements.define(uniqueName, Ctor, { extends: Ctor.extends });
+
+  prepareForRegistration(name, Ctor);
+  window.customElements.define(name, Ctor, { extends: Ctor.extends });
+
   return Ctor;
 }
 
@@ -135,6 +142,7 @@ export default function (name, opts) {
   if (opts === undefined) {
     throw new Error(`You have to define options to register a component ${name}`);
   }
+
   const Ctor = typeof opts === 'object' ? Component.extend(opts) : opts;
   formatLinkedAttributes(Ctor);
 
