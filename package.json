@@ -32,7 +32,7 @@
     "eslint-friendly-formatter": "^2.0.6",
     "eslint-plugin-import": "^1.14.0",
     "precommit-hook": "^3.0.0",
-    "react": "15.x",
+    "react": "15.3.2",
     "react-dom": "15.x",
     "skatejs-build": "7.x",
     "skatejs-web-components": "1.x"
